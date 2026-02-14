@@ -22,8 +22,12 @@ class HabitViewSet(viewsets.ModelViewSet):
         Возвращаем только привычки текущего пользователя.
         Для Swagger генерации возвращаем пустой queryset.
         """
-        # Добавляем проверку для Swagger
+        # ✅ Важно: проверка для Swagger
         if getattr(self, 'swagger_fake_view', False):
+            return Habit.objects.none()
+
+        # Для анонимных пользователей тоже возвращаем пустой queryset
+        if not self.request or not self.request.user.is_authenticated:
             return Habit.objects.none()
 
         return Habit.objects.filter(user=self.request.user)
@@ -37,7 +41,6 @@ class HabitViewSet(viewsets.ModelViewSet):
         """Список публичных привычек - доступно без авторизации"""
         public_habits = Habit.objects.filter(is_public=True)
 
-        # Пагинация
         page = self.paginate_queryset(public_habits)
         if page is not None:
             serializer = PublicHabitSerializer(page, many=True)
@@ -49,17 +52,12 @@ class HabitViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def complete(self, request, pk=None):
         """Отметить привычку как выполненную"""
-        try:
-            habit = self.get_object()
-        except:
-            return Response(
-                {'error': 'Привычка не найдена'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        habit = self.get_object()
 
+        # Дополнительная проверка владельца
         if habit.user != request.user:
             return Response(
-                {'error': 'Вы не можете отмечать чужие привычки'},
+                {'error': 'Вы можете отмечать только свои привычки'},
                 status=status.HTTP_403_FORBIDDEN
             )
 
@@ -77,36 +75,9 @@ class HabitViewSet(viewsets.ModelViewSet):
         serializer = HabitCompletionSerializer(completion)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=['get'])
-    def completions(self, request, pk=None):
-        """Получить историю выполнения привычки"""
-        try:
-            habit = self.get_object()
-        except:
-            return Response(
-                {'error': 'Привычка не найдена'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        if habit.user != request.user:
-            return Response(
-                {'error': 'Вы не можете просматривать чужие привычки'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        completions = habit.completions.all()
-
-        page = self.paginate_queryset(completions)
-        if page is not None:
-            serializer = HabitCompletionSerializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
-        serializer = HabitCompletionSerializer(completions, many=True)
-        return Response(serializer.data)
-
 
 class PublicHabitListView(generics.ListAPIView):
-    """Список публичных привычек - доступно без авторизации"""
+    """Публичные привычки - ТОЛЬКО ЧТЕНИЕ"""
 
     serializer_class = PublicHabitSerializer
     permission_classes = [permissions.AllowAny]
@@ -116,7 +87,7 @@ class PublicHabitListView(generics.ListAPIView):
 
 
 class HabitCompletionViewSet(viewsets.ModelViewSet):
-    """ViewSet для отслеживания выполнения привычек"""
+    """Выполнение привычек - ТОЛЬКО СВОИ"""
 
     serializer_class = HabitCompletionSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -124,6 +95,9 @@ class HabitCompletionViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Для Swagger возвращаем пустой queryset"""
         if getattr(self, 'swagger_fake_view', False):
+            return HabitCompletion.objects.none()
+
+        if not self.request or not self.request.user.is_authenticated:
             return HabitCompletion.objects.none()
 
         return HabitCompletion.objects.filter(habit__user=self.request.user)

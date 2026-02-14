@@ -2,6 +2,8 @@ from django.db import models
 from django.contrib.auth import get_user_model
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.core.exceptions import ValidationError
+from django.utils import timezone  # Добавляем импорт
+import pytz  # Добавляем импорт для работы с часовыми поясами
 
 User = get_user_model()
 
@@ -96,16 +98,43 @@ class Habit(models.Model):
         verbose_name_plural = 'Привычки'
         ordering = ['-created_at']
 
-    def __str__(self):
+    def __str__(self):  # Исправлено: __str__ вместо str
         return f"{self.action} в {self.time} ({self.place})"
+
+    def get_local_time(self):
+        """Получить время привычки в локальном часовом поясе (MSK)"""
+        if self.time:
+            moscow_tz = pytz.timezone('Europe/Moscow')
+            # Создаем datetime с временем привычки (UTC из БД)
+            utc_time = timezone.now().replace(
+                hour=self.time.hour,
+                minute=self.time.minute,
+                second=0,
+                microsecond=0
+            )
+            # Конвертируем в MSK
+            moscow_time = utc_time.astimezone(moscow_tz)
+            return moscow_time.time()
+        return None
+
+    def get_local_time_str(self):
+        """Получить время привычки в формате ЧЧ:ММ (MSK)"""
+        local = self.get_local_time()
+        if local:
+            return f"{local.hour:02d}:{local.minute:02d}"
+        return ""
+
+    def get_utc_time_str(self):
+        """Получить время привычки в формате ЧЧ:ММ (UTC)"""
+        if self.time:
+            return f"{self.time.hour:02d}:{self.time.minute:02d}"
+        return ""
 
     def clean(self):
         """Валидация на уровне модели"""
-
         # Валидация 1: Исключить одновременный выбор связанной привычки и указания вознаграждения
         if self.related_habit and self.reward:
-            raise ValidationError('Нельзя одновременно указывать связанную привычку и вознаграждение'
-            )
+            raise ValidationError('Нельзя одновременно указывать связанную привычку и вознаграждение')
 
         # Валидация 2: В связанные привычки могут попадать только привычки с признаком приятной привычки
         if self.related_habit and self.related_habit.id and not self.related_habit.is_pleasant:
@@ -138,12 +167,12 @@ class Habit(models.Model):
         self.full_clean()
         super().save(*args, **kwargs)
 
-# Класс HabitCompletion должен быть ОТДЕЛЬНО или использовать строковую ссылку
+
 class HabitCompletion(models.Model):
     """Отслеживание выполнения привычек"""
 
     habit = models.ForeignKey(
-        'Habit',  # Используем строковую ссылку вместо класса
+        'Habit',
         on_delete=models.CASCADE,
         related_name='completions',
         verbose_name='Привычка'
@@ -172,9 +201,9 @@ class HabitCompletion(models.Model):
         unique_together = ['habit', 'completion_date']
         ordering = ['-completion_date']
 
-    def __str__(self):
-        status = "Выполнена" if self.is_completed else "Не выполнена"
-        return f"{self.completion_date} - {status}"
+    def __str__(self):  # Исправлено: __str__ вместо str
+        status = "✅" if self.is_completed else "❌"
+        return f"{self.completion_date} - {self.habit.action} {status}"
 
     def save(self, *args, **kwargs):
         # Если отмечаем как выполненную, устанавливаем время выполнения

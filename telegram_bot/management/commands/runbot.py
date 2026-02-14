@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from telegram_bot.bot import HabitBot  # Убедись что импорт правильный
+from telegram_bot.bot import HabitBot
 
 
 class Command(BaseCommand):
