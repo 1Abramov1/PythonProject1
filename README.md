@@ -114,6 +114,19 @@ PythonProject1/
 ├── requirements.txt
 └── .env
 
+## 🐳 Запуск через Docker
+
+### Предварительные требования
+- Установите [Docker](https://www.docker.com/products/docker-desktop/)
+- Установите [Docker Compose](https://docs.docker.com/compose/install/)
+
+### Шаги для запуска
+
+1. **Клонируйте репозиторий**
+   ```bash
+   git clone https://github.com/New_Alexs/PythonProject1.git
+   cd PythonProject1
+
 ✅ Статус проекта
 
 https://img.shields.io/badge/Python-3.13-blue
