@@ -133,3 +133,14 @@ poetry.lock
 # Database
 *.db
 *.sqlite3
+
+pytest_cache/
+
+# Docker
+.dockerignore
+Dockerfile
+docker-compose*.yml
+
+# Project specific
+!requirements.txt
+!manage.py

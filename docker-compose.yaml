@@ -1,0 +1,124 @@
+
+
+services:
+  # База данных PostgreSQL
+  db:
+    image: postgres:15-alpine
+    container_name: habits_db
+    restart: unless-stopped
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_DB=habits_db
+      - POSTGRES_USER=habits_user
+      - POSTGRES_PASSWORD=habits_pass
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U habits_user -d habits_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - habits_network
+
+  # Redis для Celery
+  redis:
+    image: redis:7-alpine
+    container_name: habits_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - habits_network
+
+  # Backend Django
+  backend:
+    build: .
+    container_name: habits_backend
+    restart: unless-stopped
+    command: >
+      sh -c "
+        python manage.py migrate &&
+        python manage.py runserver 0.0.0.0:8000
+      "
+    volumes:
+      - .:/app
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - habits_network
+
+  # Celery Worker
+  celery_worker:
+    build: .
+    container_name: habits_celery_worker
+    restart: unless-stopped
+    command: celery -A config worker --loglevel=info --pool=solo
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - backend
+      - redis
+    networks:
+      - habits_network
+
+  # Celery Beat (планировщик)
+  celery_beat:
+    build: .
+    container_name: habits_celery_beat
+    restart: unless-stopped
+    command: celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - backend
+      - redis
+    networks:
+      - habits_network
+
+  # Telegram Bot (если нужно отдельно)
+  telegram_bot:
+    build: .
+    container_name: habits_telegram_bot
+    restart: unless-stopped
+    command: python manage.py runbot
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - backend
+      - redis
+    networks:
+      - habits_network
+
+networks:
+  habits_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  static_volume:
+  media_volume:
