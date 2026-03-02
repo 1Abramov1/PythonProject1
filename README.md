@@ -1,4 +1,4 @@
-📱 Habit Tracker
+📱# Habit Tracker
 
 📋 О проекте
 
@@ -14,6 +14,8 @@
 · Telegram Bot: python-telegram-bot
 · Документация: Swagger (drf-yasg)
 · Тестирование: pytest, coverage (~80%)
+· Контейнеризация: Docker, Docker Compose
+· Облачный хостинг: Yandex Cloud
 
 ✨ Функциональность
 
@@ -27,7 +29,7 @@
 · ✅ Ежедневная сводка в 9:00
 · ✅ Поддержка часовых поясов (MSK)
 
-🏗️ Установка и запуск
+🏗 Установка и запуск
 
 Предварительные требования
 
@@ -122,17 +124,54 @@ PythonProject1/
 
 ### Шаги для запуска
 
-1. **Клонируйте репозиторий**
+1. Клонируйте репозиторий
    ```bash
    git clone https://github.com/New_Alexs/PythonProject1.git
    cd PythonProject1
+   
+1.1 Создайте файл .env из шаблона
+  
+   cp .env.example .env
+   
+   Отредактируйте .env, указав свои значения (особенно TELEGRAM_BOT_TOKEN)
+2.1 Запустите все сервисы
+  
+   docker-compose up -d
+   
+3.1 Примените миграции (если не применились автоматически)
+  
+   docker-compose exec backend python manage.py migrate
+   
+4.1 Создайте суперпользователя
+  
+   docker-compose exec backend python manage.py createsuperuser
+   
+Проверка работоспособности сервисов
 
-✅ Статус проекта
+Сервис URL / Команда Описание
+Backend http://localhost:8000 Django сервер
+Admin http://localhost:8000/admin Админ-панель
+API Docs http://localhost:8000/swagger/ Swagger документация
+PostgreSQL docker-compose exec db psql -U habits_user -d habits_db Подключение к БД
+Redis docker-compose exec redis redis-cli ping Должен ответить PONG
+Celery Worker docker-compose logs celery_worker Просмотр логов
 
-https://img.shields.io/badge/Python-3.13-blue
-https://img.shields.io/badge/Django-4.2-green
-https://img.shields.io/badge/DRF-3.14-red
-https://img.shields.io/badge/coverage-80%25-brightgreen
+🚀 Автоматический деплой (CI/CD)
+
+Проект настроен на автоматическое обновление при пуше в ветку develop.
+
+Как это работает:
+
+1. Вы пушите изменения в GitHub
+2. GitHub Actions подключается к серверу по SSH
+3. Выполняется git pull, пересборка и перезапуск контейнеров
+4. Обновлённая версия становится доступна по адресу http://158.160.227.111
+
+Работающий сервер:
+🌐 http://158.160.227.111
+🔑 Админка: http://158.160.227.111/admin
+
+📄 Лицензия
 
 Этот проект распространяется под лицензией MIT.
 
@@ -144,7 +183,7 @@ https://img.shields.io/badge/coverage-80%25-brightgreen
 
 · Команда Django за отличный фреймворк
 · Сообщество Django REST Framework
-· Stripe за удобный платежный API
+· Yandex Cloud за надёжный хостинг
 · Все контрибьюторы проекта
 
 ⭐️ Не забудьте поставить звезду, если проект был полезен!
